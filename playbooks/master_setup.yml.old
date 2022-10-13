@@ -1,0 +1,66 @@
+- hosts: masters
+  become: true
+  vars_files:
+    - env_vars
+  tasks:
+    - name: Pulling images required for setting up a Kubernetes cluster
+      shell: kubeadm config images pull
+    
+    - name: initialise/start the cluster
+      shell:  kubeadm init --apiserver-advertise-address {{ad_addr}} --pod-network-cidr={{cidr_v}}
+      args:
+        chdir: $HOME
+      async: 60
+      poll: 60
+
+      #- name: create a new directory to hold kube conf
+      #become: yes
+      #become_user: ansible
+      #file:
+      # path: $HOME/.kube
+      # state: directory
+      # mode: 0755
+
+        # - name: copy configuration file to the newly created dir
+        # become: true
+        #become_user: ansible
+        #copy:
+        #src: /etc/kubernetes/admin.conf
+        #dest: $HOME/.kube/config
+        #remote_src: yes
+        #owner: ansible
+
+        #- name: set kubeconfig file permissions
+        #become: true
+        #become_user: ansible
+        #file:
+        #path: $HOME/.kube/config 
+        #owner: "{{ ansible_effective_user_id }}"
+        #group: "{{ ansible_effective_group_id }}"
+
+    - name: Configure the initialised  kubernetes master 
+      #become_user: ansible
+      shell: |
+               su ansible
+               cd 
+               mkdir -p $HOME/.kube
+               sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+               sudo chown $(id -u):$(id -g) $HOME/.kube/config
+               
+      
+    - name: Apply a calico manifset to init the pod network
+      become: yes
+      become_user: kube
+      shell: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml 
+      args:
+        chdir: $HOME
+        
+    - name: Get the join command to be used by the worker
+      become: yes
+      become_user: kube
+      shell: kubeadm token create  --print-join-command
+      register: kube_join_command
+
+    - name: Save the join command to a local file
+      become: yes
+      local_action: copy content="{{ kube_join_command.stdout_lines[0] }}" dest="/etc/kube_join_command" mode=0777

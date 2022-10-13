@@ -1,0 +1,18 @@
+---
+- hosts: all
+  become: true
+  tasks:
+       - name: make a new user named kube 
+         user: name=kube append=yes group=wheel state=present createhome=yes shell=/bin/bash
+
+       - name: give the user privileges to run without password
+         lineinfile:
+                 dest: /etc/sudoers
+                 line: 'kube ALL=(ALL) NOPASSWD: ALL'
+                 validate: '/usr/sbin/visudo -cf %s'
+       
+       - name: add authorized key for the new user
+         authorized_key: user=kube key="{{item}}"
+         with_file:
+                 - /home/ansible/.ssh/id_rsa.pub
+
