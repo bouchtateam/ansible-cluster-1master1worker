@@ -81,9 +81,9 @@
         filename: kubernetes
         mode: 0600
 
- #    - name: install kubernetes
- #      shell: |
- #              sudo dnf install -y kubelet kubeadm kubectl
+     - name: install kubernetes
+       shell: |
+               sudo apt install -y kubelet kubeadm kubectl
     
      - name:  Starting and Enabling the required services
        service:
